@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Simulasi 3D Dasar IoT – ESP32</title>
+<style>
+:root{--bg:#0a1a33;--pn:#10264a;--tx:#eaf1ff;--mu:#9db3d6;--ac:#2f80ff;--ok:#22c55e;--bd:#23406e;--gl:#14376e;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#eef3fb;--pn:#fff;--tx:#0b1f3f;--mu:#4a5f82;--bd:#c7d4ea;--gl:#cfe0ff}}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(1100px 520px at 15% -10%,var(--gl),transparent 60%),var(--bg);color:var(--tx);font:15px/1.5 system-ui,Arial,sans-serif}
+#app{display:grid;grid-template-columns:190px 1fr 380px;height:100vh}
+nav{background:var(--pn);border-right:1px solid var(--bd);padding:10px;overflow:auto}
+nav h3{font-size:14px;letter-spacing:.08em;margin:4px 4px 12px;color:var(--ac);text-transform:uppercase}
+nav button{display:block;width:100%;text-align:left;margin:3px 0;padding:9px 10px;border:0;border-radius:10px;background:none;color:var(--tx);cursor:pointer;font-size:14px;transition:background .2s,transform .2s}
+nav button:hover{background:rgba(47,128,255,.18);transform:translateX(3px)}nav button.on{background:linear-gradient(90deg,var(--ac),#1d63d6);color:#fff;box-shadow:0 4px 14px rgba(47,128,255,.4)}
+#mid{position:relative;min-width:0}#cv{width:100%;height:100%;display:block}
+#info{position:absolute;left:10px;bottom:10px;right:10px;background:color-mix(in srgb,var(--pn) 82%,transparent);backdrop-filter:blur(8px);border:1px solid var(--bd);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.3);padding:8px 12px;font-size:13px;max-height:30%;overflow:auto}
+#side{background:var(--pn);border-left:1px solid var(--bd);padding:14px;overflow:auto}
+h1{font-size:24px;line-height:1.2;margin:0 0 6px;background:linear-gradient(90deg,var(--tx),var(--ac));-webkit-background-clip:text;background-clip:text;color:transparent}h2{font-size:19px;margin:0 0 10px;padding-bottom:6px;border-bottom:2px solid var(--ac)}h4{margin:14px 0 4px;color:var(--ac)}
+.mu{color:var(--mu)}.btn{background:linear-gradient(135deg,#3b8bff,#1d63d6);color:#fff;border:0;border-radius:10px;padding:10px 16px;margin:4px 4px 4px 0;cursor:pointer;font-size:14px;text-decoration:none;display:inline-block;box-shadow:0 4px 12px rgba(29,99,214,.35);transition:transform .15s,filter .15s}.btn:hover{transform:translateY(-2px);filter:brightness(1.1)}
+.btn.r{background:#dc2626}.btn.g{background:#16a34a}
+pre{background:#06101f;color:#cfe3ff;padding:10px;border:1px solid var(--bd);border-left:3px solid var(--ac);border-radius:8px;overflow-x:auto;font-size:12px;max-height:320px}
+.tag{display:inline-block;padding:2px 8px;border-radius:6px;background:#f59e0b;color:#111;font-size:12px}
+.q{margin:10px 0;padding:8px;border:1px solid var(--bd);border-radius:8px}.q label{display:block;padding:2px 0}
+.bar{height:10px;background:var(--bd);border-radius:6px;overflow:hidden}.bar i{display:block;height:100%;background:linear-gradient(90deg,#22c55e,#22d3ee);transition:width .4s;width:0}
+table{border-collapse:collapse;width:100%;font-size:13px}td,th{border:1px solid var(--bd);padding:4px 6px;text-align:left}
+.hero{padding:16px;border-radius:14px;background:linear-gradient(135deg,rgba(47,128,255,.28),rgba(34,211,238,.12));border:1px solid var(--bd);margin-bottom:12px}.badge{display:inline-block;font-size:11px;letter-spacing:.06em;padding:3px 10px;border-radius:999px;background:var(--ac);color:#fff;margin-bottom:8px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.card{padding:10px;border:1px solid var(--bd);border-radius:12px;background:rgba(47,128,255,.08);cursor:pointer;transition:transform .2s,border-color .2s;display:flex;flex-direction:column;gap:2px;font-size:13px}.card:hover{transform:translateY(-2px);border-color:var(--ac)}.card span{color:var(--mu)}.card em{color:var(--ok);font-style:normal;font-size:12px}@keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}#side>*{animation:up .35s ease both}@media (prefers-reduced-motion:reduce){#side>*{animation:none}*{transition:none!important}}@media(max-width:1000px){#app{grid-template-columns:1fr;grid-template-rows:auto 45vh auto;height:auto}nav{display:flex;flex-wrap:wrap;gap:2px}nav h3{width:100%}nav button{width:auto}#side{border-left:0}}
+</style></head><body>
+<div id="app"><nav id="nav"></nav>
+<div id="mid"><canvas id="cv"></canvas><div id="info">Klik komponen 3D untuk melihat informasinya. Seret = putar, scroll = zoom.</div></div>
+<div id="side"></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+let done={};try{done=JSON.parse(localStorage.getItem('iot_done')||'{}')}catch(e){}
+const save=()=>{try{localStorage.setItem('iot_done',JSON.stringify(done))}catch(e){}};
+const esc=s=>s.replace(/</g,'&lt;');
+const WOKWI='https://wokwi.com/projects/new/esp32';
+const CODE3=`void setup() {
+  Serial.begin(115200);
+  Serial.println("ESP32 SIAP DIGUNAKAN");
+}
+void loop() {
+  delay(1000);
+}`;
+const CODE6=`#include <WiFi.h>
+#include <WebServer.h>
+const char* ssid = "Wokwi-GUEST";
+const char* password = "";
+const int ledPin = 2;
+WebServer server(80);
+
+String halaman() {
+  String h = "<!DOCTYPE html><html lang='id'><head><meta charset='UTF-8'>"
+   "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
+   "<title>Kendali LED ESP32</title></head><body style='font-family:Arial;text-align:center'>"
+   "<h1>KENDALI LED ESP32</h1><p>SMK Pembnas Purwodadi</p>"
+   "<h2>Status LED: %S%</h2>"
+   "<a href='/on'><button>LED ON</button></a> "
+   "<a href='/off'><button>LED OFF</button></a></body></html>";
+  h.replace("%S%", digitalRead(ledPin) ? "MENYALA" : "MATI");
+  return h;
+}
+void handleRoot() { server.send(200, "text/html", halaman()); }
+void handleOn()   { digitalWrite(ledPin, HIGH);
+  server.sendHeader("Location", "/"); server.send(303, "text/plain", ""); }
+void handleOff()  { digitalWrite(ledPin, LOW);
+  server.sendHeader("Location", "/"); server.send(303, "text/plain", ""); }
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(ledPin, OUTPUT);
+  digitalWrite(ledPin, LOW);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
+  Serial.println();
+  Serial.print("Alamat IP ESP32: ");
+  Serial.println(WiFi.localIP());
+  server.on("/", handleRoot);
+  server.on("/on", handleOn);
+  server.on("/off", handleOff);
+  server.begin();
+  Serial.println("Web Server Aktif");
+}
+void loop() { server.handleClient(); }`;
+const CODE4=`#include <WiFi.h>
+#include <WebServer.h>
+
+const char* ssid = "Wokwi-GUEST";
+const char* password = "";
+
+WebServer server(80);
+
+void handleRoot() {
+  server.send(
+    200,
+    "text/html",
+    "<html><body>"
+    "<h1>Web Server ESP32</h1>"
+    "<p>ESP32 berhasil menjalankan web server.</p>"
+    "</body></html>"
+  );
+}
+
+void setup() {
+  Serial.begin(115200);
+
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println();
+  Serial.println("WiFi Terhubung");
+  Serial.print("Alamat IP: ");
+  Serial.println(WiFi.localIP());
+
+  server.on("/", handleRoot);
+  server.begin();
+
+  Serial.println("Web Server Aktif");
+}
+
+void loop() {
+  server.handleClient();
+}`;
+function pinout(){const L=['3V3','EN','SVP·36','SVN·39','34','35','32','33','25','26','27','14','12','GND','13','D2·9','D3·10','CMD·11','5V'],Rr=['GND','23','22','TX·1','RX·3','21','GND','19','18','5','17','16','4','0','2','15','D1·8','D0·7','CLK·6'];
+const col=l=>l=='3V3'?'#f59e0b':l=='5V'?'#dc2626':l=='GND'?'#64748b':l=='2'?'#22c55e':/^(D\d|CMD|CLK)/.test(l)?'#94a3b8':'#2f80ff';
+const d=l=>/^\d+$/.test(l)?'GPIO'+l:l;
+let s='<svg viewBox="0 0 340 440" style="width:100%;max-width:340px" role="img" aria-label="Pinout ESP32 DevKitC V4"><rect x="115" y="8" width="110" height="420" rx="8" fill="#0f1a2e" stroke="#2f80ff"/><rect x="135" y="18" width="70" height="80" fill="#9aa5b1"/><text x="170" y="62" font-size="10" text-anchor="middle" fill="#111">ESP32</text><rect x="147" y="408" width="46" height="20" fill="#c0c7d0"/><text x="170" y="402" font-size="9" text-anchor="middle" fill="#9db3d6">USB</text>';
+L.forEach((l,i)=>{const y=30+i*20.5;s+=`<circle cx="125" cy="${y}" r="5" fill="${col(l)}"/><text x="112" y="${y+4}" font-size="11" text-anchor="end" fill="currentColor">${d(l)}</text>`});
+Rr.forEach((l,i)=>{const y=30+i*20.5,g=l=='2';s+=`<circle cx="215" cy="${y}" r="5" fill="${col(l)}"/><text x="228" y="${y+4}" font-size="11" fill="${g?'#22c55e':'currentColor'}" font-weight="${g?700:400}">${d(l)}${g?' ← LED':''}</text>`});
+return s+'</svg><p class="mu" style="font-size:12px">Biru = GPIO, oranye = 3V3, merah = 5V, abu-abu tua = GND, hijau = GPIO2 (LED). Urutan pin mengikuti tampak atas dengan USB di bawah.</p>'}
+const wk=`<p><a class="btn g" target="_blank" rel="noopener" href="${WOKWI}">BUKA PROYEK WOKWI</a></p>`;
+const mark=k=>`<button class="btn g" onclick="toggleDone('${k}')">${done[k]?'✓ Selesai (batalkan)':'Tandai Selesai'}</button>`;
+const M={
+m1:['Modul 1 — Pengenalan IoT',`<p><b>Internet of Things (IoT)</b> adalah konsep perangkat fisik yang dilengkapi sensor/aktuator dan mikrokontroler, terhubung ke jaringan agar dapat dipantau dan dikendalikan dari jauh.</p>
+<h4>Komponen utama</h4><p>Perangkat (sensor/LED) → mikrokontroler → jaringan Wi-Fi → web server → browser di komputer/HP.</p>
+<h4>Contoh</h4><p>Lampu rumah pintar, pemantauan suhu ruang server, monitoring mesin di industri elektronika.</p>
+<h4>Keterkaitan IoT dengan Komunikasi Data dan Interface</h4><p><b>Komunikasi data</b> adalah pertukaran data antarperangkat melalui media dan aturan (protokol) tertentu. <b>Interface (antarmuka)</b> adalah penghubung antara perangkat dengan perangkat lain atau dengan pengguna. IoT mempertemukan keduanya: perangkat bertukar data lewat jaringan, dan datanya dikendalikan lewat antarmuka.</p><table><tr><th>Konsep mapel</th><th>Pada proyek ini</th></tr><tr><td>Media transmisi</td><td>Wi-Fi</td></tr><tr><td>Protokol &amp; pengalamatan</td><td>HTTP, alamat IP, port 80</td></tr><tr><td>Klien–server</td><td>Browser (klien) ↔ ESP32 (server)</td></tr><tr><td>Antarmuka serial</td><td>USB dan Serial Monitor 115200 baud</td></tr><tr><td>Antarmuka I/O digital</td><td>GPIO2 → resistor → LED</td></tr><tr><td>Antarmuka pengguna</td><td>Halaman web dengan tombol ON/OFF</td></tr></table><p>Alur: <b>pengguna</b> → antarmuka web → <b>data (HTTP)</b> lewat Wi-Fi → ESP32 → <b>antarmuka GPIO</b> → LED.</p><p class="mu">Lihat animasi paket data (titik kuning) antara laptop dan ESP32 pada layar 3D.</p>`,'m1'],
+m2:['Modul 2 — Pengenalan ESP32 DevKitC V4',`<p><b>Mikrokontroler</b> adalah komputer mini dalam satu chip untuk tugas kendali. <b>ESP32</b> memiliki Wi-Fi dan Bluetooth, sehingga cocok untuk IoT.</p>
+<p><b>Klik bagian papan ESP32</b> pada 3D: modul ESP32, port USB, pin 3V3, GND, GPIO2.</p>
+<p><b>GPIO2</b> dipakai sebagai contoh keluaran LED; pemetaan pin harus disesuaikan dengan rangkaian dan program.</p>
+<p class="tag">KESELAMATAN</p> GPIO ESP32 berlogika <b>3,3 V</b>; jangan beri 5 V langsung ke pin GPIO.
+<h4>Diagram pinout</h4>${pinout()}<p class="tag">PERHATIAN</p> GPIO6–11 (SD0–SD3, CMD, CLK) terhubung ke flash internal: jangan dipakai. Cocokkan selalu dengan datasheet papan yang Anda gunakan.<h4>Beda dengan komputer biasa</h4><p>Mikrokontroler menjalankan satu program khusus, tanpa sistem operasi umum, hemat daya, dan langsung mengendalikan pin I/O.</p>`,'m2'],
+m3:['Modul 3 — Uji ESP32',`<p>Langkah di Wokwi: buka wokwi.com → New Project → pilih ESP32 → tempel kode → klik Start → baca Serial Monitor.</p>
+<pre>${esc(CODE3)}</pre>
+<p><b>setup()</b> berjalan sekali; <b>loop()</b> berulang; <b>Serial.begin(115200)</b> membuka komunikasi serial; <b>Serial.println()</b> mencetak teks; <b>delay(1000)</b> menunda 1000 ms.</p>
+<p class="tag">CATATAN</p> Aplikasi ini <b>tidak menjalankan</b> kode. Keluaran "ESP32 SIAP DIGUNAKAN" hanya muncul di Serial Monitor Wokwi setelah Anda menjalankan simulasi di sana.${wk}`,'m3'],
+m4:['Modul 4 — Uji Web Server ESP32',`<p><b>Web server</b> menerima permintaan HTTP dari <b>klien</b> (browser) dan membalas dengan halaman. <b>Alamat IP</b> mengidentifikasi perangkat di jaringan. HTTP memakai port <b>80</b>. <b>WiFi.h</b> mengurus koneksi; <b>WebServer.h</b> menangani rute dan respons.</p>
+<p>Alur: Browser → Permintaan HTTP → ESP32 → Respons HTTP → Browser.</p>
+<p>Gunakan jaringan simulasi <code>Wokwi-GUEST</code> (tanpa kata sandi); pada perangkat fisik, SSID dan sandi mengikuti jaringan Anda.</p>
+<h4>Program web server</h4><pre>${esc(CODE4)}</pre><ul><li><b>WiFi.h</b>: koneksi ke jaringan; <b>WebServer.h</b>: membuat server HTTP.</li><li><b>ssid/password</b>: jaringan simulasi Wokwi-GUEST (tanpa sandi).</li><li><b>WebServer server(80)</b>: server pada port HTTP 80.</li><li><b>handleRoot()</b>: membalas permintaan ke "/" dengan kode 200 dan halaman HTML.</li><li><b>setup()</b>: membuka Serial, menyambung Wi-Fi sampai terhubung, mencetak alamat IP, mendaftarkan rute dengan server.on(), lalu server.begin().</li><li><b>loop()</b>: server.handleClient() melayani permintaan browser terus-menerus.</li></ul><p class="tag">KONSEPTUAL</p> Animasi 3D adalah ilustrasi, bukan koneksi nyata ke simulator. Untuk akses ke web server di Wokwi, gunakan fitur jaringan Wokwi (mis. port forwarding pada paket yang mendukung) sesuai dokumentasi resminya.${wk}`,'m4'],
+m5:['Modul 5 — Menampilkan Nama',`<p>Halaman HTML dikirim ESP32 lewat <code>server.send(200, "text/html", html)</code>. Ketik nama Anda untuk membuat pratinjau dan kode:</p>
+<input id="nm" placeholder="Nama siswa" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--bd)" oninput="prev()">
+<div id="pv" style="background:#fff;color:#111;padding:10px;border-radius:8px;margin:8px 0"></div>
+<pre id="pc"></pre>
+<p class="tag">PRATINJAU</p> Ini hanya pratinjau. Salin kode ke proyek Wokwi dan jalankan agar teruji nyata.${wk}`,'m5'],
+m6:['Modul 6 — Kendali LED via Web Server',`<p><b>Rangkaian:</b> GPIO2 → resistor 220 Ω → anoda LED; katoda LED → GND. Resistor membatasi arus agar LED dan pin aman. Arus konvensional mengalir dari GPIO2 (HIGH) melalui resistor dan LED ke GND.</p>
+<p><b>Alur:</b> tombol LED ON → HTTP GET <code>/on</code> → <code>digitalWrite(2, HIGH)</code> → LED menyala. LED OFF → <code>/off</code> → LOW.</p>
+<pre>${esc(CODE6)}</pre>
+<h4>Praktik di Wokwi</h4><ol><li>Buat proyek ESP32, tambah LED dan resistor 220 Ω.</li><li>Sambungkan ke GPIO2 dan GND.</li><li>Tempel kode, jalankan, lihat IP di Serial Monitor.</li><li>Akses web server sesuai fitur jaringan Wokwi, tekan ON dan OFF.</li><li>Catat hasil dan tangkapan layar.</li></ol>
+<p>Mode demonstrasi ada di <b>Laboratorium Virtual</b>.</p>${wk}`,'m6']};
+const Q=[
+['Apa kepanjangan IoT?',['Internet of Things','Input of Tools','Internal Output Type'],0],
+['Fungsi resistor 220 Ω pada LED adalah…',['Menyimpan data','Membatasi arus','Menambah tegangan'],1],
+['Tegangan logika GPIO ESP32 adalah…',['1,8 V','3,3 V','12 V'],1],
+['Fungsi yang berjalan berulang terus-menerus adalah…',['setup()','loop()','begin()'],1],
+['Port HTTP standar pada web server adalah…',['80','21','443 saja'],0],
+['Rute yang menyalakan LED pada program Modul 6 adalah…',['/off','/on','/status'],1]];
+const P=['m1','m2','m3','m4','m5','m6'];
+function prog(){const n=P.filter(k=>done[k]).length;return Math.round(n/6*100)}
+function toggleDone(k){done[k]=!done[k];save();nav();go(cur)}
+function nav(){const L=[['home','🏠 Beranda'],...P.map((k,i)=>[k,['📡','🔌','🧪','🌐','🪪','💡'][i]+' Modul '+(i+1)+(done[k]?' ✓':'')]),['lab','🔬 Laboratorium Virtual'],['eval','📝 Evaluasi'],['help','❓ Petunjuk Penggunaan']];
+$('#nav').innerHTML='<h3>IoT ESP32</h3>'+L.map(([k,t])=>`<button data-k="${k}" class="${k==cur?'on':''}" onclick="go('${k}')">${t}</button>`).join('')+`<p class="mu" style="font-size:12px">Progres: ${prog()}%</p><div class="bar"><i style="width:${prog()}%"></i></div>`}
+let cur='home';
+function go(k){cur=k;nav();const s=$('#side');s.scrollTop=0;
+if(k=='home')s.innerHTML=`<div class="hero"><span class="badge">⚡ KOMUNIKASI DATA DAN INTERFACE · KELAS XII</span><h1>SIMULASI 3D DASAR INTERNET OF THINGS (IoT)</h1><p class="mu" style="margin:0">Belajar ESP32, Web Server, dan Kendali LED Secara Interaktif</p></div>
+<table><tr><th>Mata Pelajaran</th><td>Komunikasi Data dan Interface</td></tr><tr><th>Guru</th><td>Agus Supriyanto, S.T., M.T.</td></tr><tr><th>Kelas</th><td>XII</td></tr><tr><th>Program</th><td>Teknik Elektronika Industri</td></tr><tr><th>Sekolah</th><td>SMK Pembnas Purwodadi</td></tr><tr><th>Platform</th><td>Wokwi</td></tr></table><p>
+<button class="btn" onclick="go('m1')">MULAI PEMBELAJARAN</button><button class="btn" onclick="go('m2')">MATERI PEMBELAJARAN</button><button class="btn" onclick="go('lab')">LABORATORIUM VIRTUAL</button><button class="btn" onclick="go('eval')">EVALUASI</button><button class="btn" onclick="go('help')">PETUNJUK PENGGUNAAN</button></p><h4>Modul pembelajaran</h4><div class="grid">${P.map((k,i)=>`<div class="card" onclick="go('${k}')"><b>${['📡','🔌','🧪','🌐','🪪','💡'][i]} Modul ${i+1}</b><span>${M[k][0].split('— ')[1]}</span>${done[k]?'<em>✓ Selesai</em>':''}</div>`).join('')}</div>`;
+else if(M[k]){s.innerHTML=`<h2>${M[k][0]}</h2>${M[k][1]}<p>${mark(k)}</p>`;if(k=='m5')prev()}
+else if(k=='lab')s.innerHTML=`<h2>Laboratorium Virtual</h2><p class="tag">MODE DEMONSTRASI</p> Tombol di bawah hanya mengubah tampilan LED 3D. <b>Tidak</b> mengirim perintah ke ESP32 sungguhan dan bukan hasil eksekusi program.
+<p><button class="btn g" onclick="demo(1)">LED ON (demo)</button><button class="btn r" onclick="demo(0)">LED OFF (demo)</button></p>
+<p>Status demo: <b id="ds">MATI</b> · GPIO2 = <b id="dg">LOW</b></p>
+<p><button class="btn" onclick="pk=!pk">Animasi data ${'on/off'}</button></p>
+<h4>Praktik nyata</h4><p>Untuk pengujian sungguhan jalankan kode Modul 6 di Wokwi.</p>${wk}`;
+else if(k=='eval')s.innerHTML=`<h2>Evaluasi</h2><p class="mu">Contoh 6 soal pilihan ganda, dinilai otomatis.</p>`+Q.map((q,i)=>`<div class="q"><b>${i+1}. ${q[0]}</b>${q[1].map((o,j)=>`<label><input type="radio" name="q${i}" value="${j}"> ${o}</label>`).join('')}</div>`).join('')+`<button class="btn" onclick="grade()">Nilai</button><p id="sc"></p><p class="mu">Penilaian praktik (rubrik): konsep 20%, rangkaian 20%, kode 25%, pengujian 25%, dokumentasi 10% — diisi/diverifikasi guru dari proyek Wokwi siswa.</p>`;
+else s.innerHTML=`<h2>Petunjuk Penggunaan</h2><ol><li>Buka berkas HTML ini di browser modern (perlu internet untuk memuat Three.js).</li><li>Pilih menu di kiri; materi tampil di kanan.</li><li>Seret model 3D untuk memutar, scroll untuk zoom, klik komponen untuk info.</li><li>Tekan "Tandai Selesai" di tiap modul; progres tersimpan di browser ini.</li><li>Praktik nyata dilakukan di <a href="https://wokwi.com/" target="_blank" rel="noopener">wokwi.com</a>.</li></ol>`}
+function prev(){const n=($('#nm')?.value||'').trim()||'Nama Siswa';const safe=n.replace(/[<>&"]/g,'');
+$('#pv').innerHTML=`<h3>WEB SERVER ESP32</h3><b>Nama: ${safe}</b><br>Kelas: XII Teknik Elektronika Industri<br>SMK Pembnas Purwodadi`;
+$('#pc').textContent=`server.send(200, "text/html",
+  "<html><body><h1>WEB SERVER ESP32</h1>"
+  "<h2>Nama: ${safe}</h2>"
+  "<p>Kelas: XII Teknik Elektronika Industri</p>"
+  "<p>SMK Pembnas Purwodadi</p></body></html>");`}
+function grade(){let b=0,a=0;Q.forEach((q,i)=>{const r=document.querySelector(`input[name=q${i}]:checked`);if(r){a++;if(+r.value==q[2])b++}});
+$('#sc').innerHTML=`Terjawab ${a}/${Q.length}, benar ${b}. Nilai: <b>${Math.round(b/Q.length*100)}</b>`}
+/* ---------- 3D ---------- */
+const cv=$('#cv'),R=new THREE.WebGLRenderer({canvas:cv,antialias:true});
+const S=new THREE.Scene();S.background=new THREE.Color(0x0b1c38);
+const C=new THREE.PerspectiveCamera(50,1,.1,100);
+let th=.6,ph=.9,rad=9;
+S.add(new THREE.AmbientLight(0xffffff,.6));const dl=new THREE.DirectionalLight(0xffffff,.9);dl.position.set(4,8,5);S.add(dl);
+const pick=[];
+function mk(g,c,x,y,z,name,info){const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:c}));m.position.set(x,y,z);m.userData={name,info};S.add(m);if(name)pick.push(m);return m}
+const B=THREE.BoxGeometry,Cy=THREE.CylinderGeometry;
+mk(new B(14,.3,8),0x3b4a63,0,-.15,0);
+mk(new B(5,.2,2.2),0xf1f5f9,0,.1,.8,'Breadboard','Papan percobaan tanpa solder untuk merangkai komponen.');
+mk(new B(1.4,.12,3),0x0f1a2e,-3.4,.15,0,'Papan ESP32 DevKitC V4','Papan pengembangan berbasis ESP32 dengan Wi-Fi dan Bluetooth.');
+mk(new B(1.1,.08,1.3),0x9aa5b1,-3.4,.25,-.6,'Modul ESP32','Berisi prosesor, Wi-Fi, dan Bluetooth. Logika GPIO 3,3 V.');
+mk(new B(.7,.25,.6),0xc0c7d0,-3.4,.22,1.55,'Port USB','Untuk memprogram dan catu daya 5 V papan.');
+mk(new B(.25,.2,.25),0xf59e0b,-2.8,.3,.9,'Pin 3V3','Keluaran catu 3,3 V.');
+mk(new B(.25,.2,.25),0x111827,-2.8,.3,1.2,'Pin GND','Ground, acuan 0 V. Katoda LED dihubungkan ke sini.');
+mk(new B(.25,.2,.25),0x22c55e,-2.8,.3,.3,'GPIO2','Keluaran digital contoh untuk LED melalui resistor 220 Ω. HIGH = 3,3 V, LOW = 0 V.');
+mk(new Cy(.07,.07,.9,12),0xd8b48a,-.9,.35,.6,'Resistor 220 Ω','Membatasi arus LED agar LED dan pin GPIO aman.').rotation.z=Math.PI/2;
+const led=mk(new Cy(.28,.28,.5,20),0x7f1d1d,.7,.45,.6,'LED','Dioda pemancar cahaya. Anoda (+) ke resistor, katoda (−) ke GND.');
+led.material.emissive=new THREE.Color(0);
+const lap=mk(new B(2.4,.15,1.6),0x94a3b8,4.2,.1,-1.5,'Laptop','Menjalankan browser/klien yang mengirim permintaan HTTP.');
+const scr=mk(new B(2.4,1.4,.1),0x1e293b,4.2,.9,-2.2,'','');scr.rotation.x=-.2;
+S.add(new THREE.HemisphereLight(0x9ec5ff,0x1b2a44,.5));
+const ledL=new THREE.PointLight(0xff3b3b,0,4);ledL.position.set(.7,1,.6);S.add(ledL);
+mk(new B(14,5,.2),0x14284d,0,2.5,-4);
+{const ib=new THREE.InstancedMesh(new B(.07,.03,.07),new THREE.MeshBasicMaterial({color:0x334155}),120),o=new THREE.Object3D();let n=0;[.1,.3,1.3,1.5].forEach(z=>{for(let i=0;i<30;i++){o.position.set(-2.3+i*.16,.21,z);o.updateMatrix();ib.setMatrixAt(n++,o.matrix)}});S.add(ib)}
+for(let k=0;k<19;k++){const z=-1.35+k*.15;[-4,-2.8].forEach(x=>{if(x==-2.8&&[.3,.9,1.2].some(v=>Math.abs(v-z)<.02))return;mk(new B(.12,.14,.1),0x111827,x,.26,z)})}
+mk(new B(1,.04,.2),0xd4a017,-3.4,.2,-1.4,'Antena PCB','Antena tercetak pada papan untuk sinyal Wi-Fi dan Bluetooth. Jangan ditutupi logam.');
+[[-.45,.2,.1,.78],[.97,.2,.1,.5]].forEach(a=>{});
+{const dome=new THREE.Mesh(new THREE.SphereGeometry(.28,20,12,0,Math.PI*2,0,Math.PI/2),led.material);dome.position.set(.7,.7,.6);dome.userData=led.userData;S.add(dome);pick.push(dome);
+[[.62,.36,'Anoda (+), kaki panjang'],[.78,.36,'Katoda (−), kaki pendek']].forEach(([x,h])=>{const lg=new THREE.Mesh(new Cy(.02,.02,h,8),new THREE.MeshStandardMaterial({color:0xcbd5e1}));lg.position.set(x,.2,.6);S.add(lg)})}
+[[-1.12,0xdc2626],[-1,0xdc2626],[-.88,0x7c2d12],[-.7,0xd4a017]].forEach(([x,c])=>{const b=new THREE.Mesh(new Cy(.078,.078,.06,12),new THREE.MeshStandardMaterial({color:c}));b.rotation.z=Math.PI/2;b.position.set(x,.35,.6);S.add(b)});
+{const sc=document.createElement('canvas');sc.width=256;sc.height=150;const g=sc.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,256,150);g.fillStyle='#0b1f3f';g.font='bold 18px Arial';g.fillText('KENDALI LED ESP32',20,40);g.font='13px Arial';g.fillText('(ilustrasi konseptual)',20,62);g.fillStyle='#16a34a';g.fillRect(20,90,90,34);g.fillStyle='#dc2626';g.fillRect(130,90,90,34);g.fillStyle='#fff';g.font='bold 14px Arial';g.fillText('LED ON',40,112);g.fillText('LED OFF',148,112);scr.material.map=new THREE.CanvasTexture(sc);scr.material.color.set(0xffffff);scr.material.needsUpdate=true}
+function ln(pts,c){const g=new THREE.BufferGeometry().setFromPoints(pts.map(p=>new THREE.Vector3(...p)));S.add(new THREE.Line(g,new THREE.LineBasicMaterial({color:c})))}
+ln([[-2.8,.4,.3],[-2.8,.9,.3],[-1.35,.9,.6],[-1.35,.4,.6]],0x22c55e);
+ln([[-.45,.4,.6],[.45,.4,.6]],0xfacc15);
+ln([[.9,.4,.6],[1.2,.9,.9],[-2.8,.9,1.2],[-2.8,.4,1.2]],0x94a3b8);
+const pg=new THREE.Mesh(new THREE.SphereGeometry(.12),new THREE.MeshBasicMaterial({color:0xfacc15}));S.add(pg);
+let pk=true,t=0;const A=new THREE.Vector3(4.2,1,-1),Z=new THREE.Vector3(-3.4,1,0);
+function demo(v){led.material.color.set(v?0xff3b3b:0x7f1d1d);led.material.emissive.set(v?0xff0000:0);$('#ds').textContent=v?'MENYALA':'MATI';$('#dg').textContent=v?'HIGH':'LOW';ledL.intensity=v?2:0}
+function size(){R.setPixelRatio(Math.min(devicePixelRatio||1,2));const m=$('#mid');R.setSize(m.clientWidth,m.clientHeight,false);C.aspect=m.clientWidth/m.clientHeight;C.updateProjectionMatrix()}
+function cam(){C.position.set(rad*Math.sin(ph)*Math.sin(th),rad*Math.cos(ph),rad*Math.sin(ph)*Math.cos(th));C.lookAt(0,.3,0)}
+let dr=false,mv=0,lx,ly;
+cv.onpointerdown=e=>{dr=true;mv=0;lx=e.clientX;ly=e.clientY;cv.setPointerCapture(e.pointerId)};
+cv.onpointermove=e=>{if(!dr)return;th-=(e.clientX-lx)*.01;ph=Math.min(1.5,Math.max(.2,ph-(e.clientY-ly)*.01));mv+=Math.abs(e.clientX-lx)+Math.abs(e.clientY-ly);lx=e.clientX;ly=e.clientY};
+cv.onpointerup=e=>{dr=false;if(mv<5){const r=cv.getBoundingClientRect(),rc=new THREE.Raycaster();rc.setFromCamera(new THREE.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),C);const h=rc.intersectObjects(pick)[0];if(h)$('#info').innerHTML='<b>'+h.object.userData.name+'</b> — '+h.object.userData.info}};
+cv.addEventListener('wheel',e=>{e.preventDefault();rad=Math.min(16,Math.max(3,rad+e.deltaY*.01))},{passive:false});
+addEventListener('resize',size);
+(function loop(){requestAnimationFrame(loop);t+=.01;pg.visible=pk;if(pk){const u=(Math.sin(t*2)+1)/2;pg.position.lerpVectors(A,Z,u)}cam();R.render(S,C)})();
+nav();go('home');size();
+</script></body></html>
